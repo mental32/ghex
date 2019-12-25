@@ -14,6 +14,10 @@ from github.Repository import Repository
 from github.NamedUser import NamedUser
 from github.Gist import Gist
 
+__author__ = "mental"
+__license__ = "MIT"
+__version__ = "0.2.0"
+
 JSON = NewType("JSON", str)
 Regex = NewType("Regex", str)
 
