@@ -6,6 +6,7 @@ from itertools import chain
 from functools import partial
 from typing import Union, NewType, Optional, Any, Callable
 from json import dumps
+from collections import Counter
 
 from click import Choice, command as click_command, argument, option, UsageError
 from github import Github
@@ -46,6 +47,8 @@ def serialize(obj: Union[Repository, NamedUser, Gist]) -> JSON:
 @option("--name", type=Regex)
 @option("--exec", "command", type=str)
 @option("--access-token", envvar="GITHUB_ACCESS_TOKEN", type=str)
+@option("--count", "counting", is_flag=True)
+@option("--sum", "summing", is_flag=True)
 @option("-0", "--null-terminated", "null_terminated", is_flag=True)
 @option("--has-issues", is_flag=True)
 def main(  # pylint: disable=too-many-locals,too-many-branches
@@ -62,6 +65,9 @@ def main(  # pylint: disable=too-many-locals,too-many-branches
     """Application entry point."""
 
     # Parse arguments
+    if summing and counting:
+        raise UsageError("--sum is mutually exclusive with --count.")
+
     end = "\x00" if null_terminated else "\n"
 
     if command is not None:
@@ -102,6 +108,14 @@ def main(  # pylint: disable=too-many-locals,too-many-branches
     repos = []
     users = []
 
+    gists_count = repos_count = 0
+
+    if counting:
+        gists_count += user.public_gists + (user.private_gists or 0)
+        repos_count += user.public_repos + getattr(user, "total_public_repos", 0)
+        print(dumps({"total_repos": repos_count, "total_gists": gists_count}))
+        exit(0)
+
     if reponame:
         repos.append(user.get_repo(reponame))
 
@@ -113,15 +127,22 @@ def main(  # pylint: disable=too-many-locals,too-many-branches
             repos.extend(user.get_repos())
 
     stream = chain(gists, repos, users)
+    counter = Counter()
 
     # Output data
     for part in stream:
         if not all(pred(part) for pred in predicates):
             continue
 
-        fmt = maybe_exec(serialize(part))
+        if summing:
+            counter[type(part).__name__] += 1
+        else:
+            fmt = maybe_exec(serialize(part))
 
-        print(fmt, end=end)
+            print(fmt, end=end)
+
+    if summing:
+        print(dumps(counter))
 
 
 if __name__ == "__main__":
