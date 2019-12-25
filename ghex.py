@@ -38,7 +38,7 @@ def maybe_match(pattern: Pattern, attr: str) -> Callable[[Any], bool]:
     return try_match
 
 
-def serialize(obj: Union[Repository, NamedUser, Gist]) -> JSON:
+def _serialize(obj: Union[Repository, NamedUser, Gist]) -> JSON:
     """Serialize an object into JSON."""
     assert hasattr(obj, "raw_data")
     return dumps(obj.raw_data)
@@ -54,6 +54,7 @@ def serialize(obj: Union[Repository, NamedUser, Gist]) -> JSON:
 @option("--count", "counting", is_flag=True)
 @option("--sum", "summing", is_flag=True)
 @option("-0", "--null-terminated", "null_terminated", is_flag=True)
+@option("--repr", "use_repr", is_flag=True)
 @option("--has-issues", is_flag=True)
 def main(  # pylint: disable=too-many-locals,too-many-branches
     *,
@@ -63,8 +64,11 @@ def main(  # pylint: disable=too-many-locals,too-many-branches
     name: Optional[Pattern],
     command: Optional[str],
     access_token: Optional[str],
-    null_terminated: Optional[bool],
-    has_issues: Optional[bool],
+    null_terminated: bool,
+    counting: bool,
+    summing: bool,
+    use_repr: bool,
+    has_issues: bool,
 ) -> None:
     """Application entry point."""
 
@@ -73,6 +77,7 @@ def main(  # pylint: disable=too-many-locals,too-many-branches
         raise UsageError("--sum is mutually exclusive with --count.")
 
     end = "\x00" if null_terminated else "\n"
+    serialize = repr if use_repr else _serialize
 
     if command is not None:
         maybe_exec = partial(try_exec, command)
