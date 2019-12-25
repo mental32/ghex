@@ -24,10 +24,16 @@ that task a lot easier.
 
  - `ghex mental32 --type r --language Python | wc -l`
 
+![foo](https://i.imgur.com/Ot6TUFS.png)
+
 ### Issues open over all repositories
 
  - `ghex mental32 --type r --has-issues`
 
+![bar](https://i.imgur.com/qSsf1x6.png)
+
 ### A specific repository as JSON
 
  - `ghex mental32/ghex`
+
+![baz](https://i.imgur.com/dcKyRGN.png)
