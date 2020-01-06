@@ -32,8 +32,12 @@ def maybe_match(pattern: Pattern, attr: str) -> Callable[[Any], bool]:
     """Produce a matching function for a pattern."""
 
     def try_match(obj: Any) -> bool:
-        target = str(getattr(obj, attr))
-        return pattern.match(target) is not None
+        try:
+            target = str(getattr(obj, attr))
+        except AttributeError:
+            return True
+        else:
+            return pattern.match(target) is not None
 
     return try_match
 
@@ -42,6 +46,11 @@ def _serialize(obj: Union[Repository, NamedUser, Gist]) -> JSON:
     """Serialize an object into JSON."""
     assert hasattr(obj, "raw_data")
     return dumps(obj.raw_data)
+
+
+_REPO_EXCLUSIVE_PREDICATES = [
+    ("--has-issues", (lambda obj: bool(obj.open_issues)))
+]
 
 
 @click_command()
@@ -56,6 +65,8 @@ def _serialize(obj: Union[Repository, NamedUser, Gist]) -> JSON:
 @option("-0", "--null-terminated", "null_terminated", is_flag=True)
 @option("--repr", "use_repr", is_flag=True)
 @option("--has-issues", is_flag=True)
+@option("--public/--not-public")
+@option("--private/--not-private")
 def main(  # pylint: disable=too-many-locals,too-many-branches
     *,
     target: Optional[str],
@@ -69,6 +80,8 @@ def main(  # pylint: disable=too-many-locals,too-many-branches
     summing: bool,
     use_repr: bool,
     has_issues: bool,
+    public: bool,
+    private: bool,
 ) -> None:
     """Application entry point."""
 
@@ -86,13 +99,10 @@ def main(  # pylint: disable=too-many-locals,too-many-branches
 
     predicates = []
 
-    if has_issues:
-        if kind is not None and kind[0] != "r":
-            raise UsageError(
-                "--has-issues can only be used with repositories as a target type."
-            )
-
-        predicates.append((lambda obj: bool(obj.open_issues)))
+    targeting_repositories = kind is None or kind[0] == "r"
+    for elem, (_, pred) in zip([has_issues], _REPO_EXCLUSIVE_PREDICATES):
+        if elem and targeting_repositories:
+            predicates.append(pred)
 
     for pattern, attr in [(language, "language"), (name, "name")]:
         if pattern is not None:
